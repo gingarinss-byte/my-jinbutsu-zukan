@@ -1,4 +1,4 @@
-ひらき
+
 <!DOCTYPE html>
 <html lang="ja">
 <head>
@@ -37,7 +37,7 @@
     <h1>🌸 My人物図鑑＆住所録</h1>
     <p>あなただけの人物図鑑</p>
     <p>🔐 Googleアカウントでログイン</p>
-    <button disabled>Googleでログイン（準備中）</button>
+    <button id="loginBtn" type="button">Googleでログイン</button>
     <p>安全なログイン機能を設定しています。</p>
   </div>
 <script type="module">
@@ -55,6 +55,18 @@
 
   const app = initializeApp(firebaseConfig);
   const auth = getAuth(app);
+
+const provider = new GoogleAuthProvider();
+
+document.getElementById("loginBtn").addEventListener("click", async () => {
+  try {
+    const result = await signInWithPopup(auth, provider);
+    alert("ログインできました！");
+  } catch (error) {
+    console.error(error);
+    alert("ログインに失敗しました: " + error.code);
+  }
+});
 </script>
 </body>
   
