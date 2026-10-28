@@ -1,4 +1,4 @@
-
+ひらき
 <!DOCTYPE html>
 <html lang="ja">
 <head>
@@ -40,5 +40,22 @@
     <button disabled>Googleでログイン（準備中）</button>
     <p>安全なログイン機能を設定しています。</p>
   </div>
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-app.js";
+  import { getAuth, GoogleAuthProvider, signInWithPopup } from "https://www.gstatic.com/firebasejs/12.4.0/firebase-auth.js";
+
+  const firebaseConfig = {
+    apiKey: "AIzaSyAmHbKG-NJwquR0g7HXbuWH0y3goKjtIMw",
+    authDomain: "my-jinbutsu-zukan.firebaseapp.com",
+    projectId: "my-jinbutsu-zukan",
+    storageBucket: "my-jinbutsu-zukan.firebasestorage.app",
+    messagingSenderId: "593269991251",
+    appId: "1:593269991251:web:308d2ba239bbdbfb9723a6"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const auth = getAuth(app);
+</script>
 </body>
+  
 </html>
