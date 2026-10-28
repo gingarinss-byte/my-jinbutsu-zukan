@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="ja">
 <head>
@@ -5,17 +6,39 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>My人物図鑑＆住所録</title>
   <style>
-    body { font-family: sans-serif; background: #fff8f1; text-align: center; padding: 40px 15px; }
+    body {
+      font-family: sans-serif;
+      background: #fff8f1;
+      text-align: center;
+      padding: 35px 15px;
+    }
+    .panel {
+      background: white;
+      max-width: 420px;
+      margin: 30px auto;
+      padding: 30px 20px;
+      border-radius: 18px;
+      box-shadow: 0 3px 12px #ddd;
+    }
     h1 { color: #d66b30; }
-    .panel { background: white; padding: 25px; border-radius: 18px; max-width: 420px; margin: 30px auto; box-shadow: 0 3px 12px #ddd; }
+    button {
+      background: #4285f4;
+      color: white;
+      border: none;
+      border-radius: 10px;
+      padding: 15px 25px;
+      font-size: 16px;
+      cursor: pointer;
+    }
   </style>
 </head>
 <body>
   <div class="panel">
     <h1>🌸 My人物図鑑＆住所録</h1>
-    <p>ようこそ！</p>
-    <p>アプリの準備をしています。</p>
-    <p>🔐 Googleログイン機能は次に追加します。</p>
+    <p>あなただけの人物図鑑</p>
+    <p>🔐 Googleアカウントでログイン</p>
+    <button disabled>Googleでログイン（準備中）</button>
+    <p>安全なログイン機能を設定しています。</p>
   </div>
 </body>
 </html>
