@@ -33,6 +33,7 @@ body>header,body>main,body>footer{display:none!important}
 <header><h1>🐱 My人物図鑑＆住所録 🌸</h1><p>大切な人物情報を、見やすく整理しましょう</p></header>
 <main>
 <section class="panel"><h2>☁️ Googleログイン・自動同期</h2><p id="syncStatus" role="status" aria-live="polite">接続を準備しています…</p><div class="actions"><button id="login" type="button">Googleでログイン</button><button id="logout" type="button" hidden>ログアウト</button><button id="retrySync" type="button" hidden>再接続</button></div><p class="notice">スマホとパソコンで同じGoogleアカウントを使ってください。ログイン後、バックアップを追加読込すると人物を取り込めます。同期にはインターネット接続が必要です。写真は従来どおり縮小して保存します。</p></section>
+<section class="panel" aria-labelledby="celebrityTitle"><h2 id="celebrityTitle">🔎 著名人を調べて取り込む</h2><label for="celebrityQuery">著名人の名前</label><input id="celebrityQuery" maxlength="120" placeholder="例：新垣結衣" autocomplete="off" aria-describedby="celebrityHint"><div class="actions"><button id="searchCelebrity" type="button">検索</button></div><p id="celebrityHint" class="notice">公開されているWikipediaの概要とWikidataの生年月日を調べます。検索した名前を両サービスに送信します。登録済みの住所・電話番号・メモは送信しません。写真の取得にはまだ対応していません。</p><p id="celebrityStatus" role="status" aria-live="polite">名前を入力して「検索」を押してください。</p><div id="celebrityResults" class="actions"></div><article id="celebrityPreview" class="person" style="margin-top:16px" hidden><h3 id="celebrityName"></h3><p id="celebrityBirth"></p><p id="celebritySummary" style="white-space:pre-wrap"></p><p id="celebrityDetailNote" class="notice"></p><p><a id="celebritySource" target="_blank" rel="noopener noreferrer"></a> <a id="celebrityDataSource" target="_blank" rel="noopener noreferrer" hidden>Wikidataを開く</a></p><p class="notice">概要の出典：Wikipediaの各記事・執筆者（<a href="https://creativecommons.org/licenses/by-sa/4.0/" target="_blank" rel="noopener noreferrer">CC BY-SA</a>）。生年月日等：Wikidata（CC0）。内容には誤りや更新の遅れがある場合があります。人物と内容を出典で確認してください。</p><div class="actions"><button id="importCelebrity" type="button" disabled>登録フォームに取り込む</button></div></article></section>
 <section class="panel"><h2 id="formTitle">🌷 人物を登録</h2><p id="editStatus" role="status" aria-live="polite"></p>
 <form id="personForm">
 <div class="fields">
@@ -78,7 +79,7 @@ const firebaseConfig={apiKey:"AIzaSyAmHbKG-NJwquR0g7HXbuWH0y3goKjtIMw",authDomai
 const app=initializeApp(firebaseConfig),auth=getAuth(app),db=getFirestore(app);
 let cloudUser=null,cloudReady=false,busy=false,baseline=[],unsubscribe=null,latest=null,epoch=0;
 function syncMessage(text){$('syncStatus').textContent=text;}
-function lockControls(){storageHealthy=!!cloudUser&&cloudReady&&!busy&&navigator.onLine;for(const el of document.querySelectorAll('#personForm input,#personForm select,#personForm textarea,#personForm button,#restore,#people button,#birthdayPeople button'))el.disabled=!storageHealthy; $('logout').disabled=busy; if($('lookupPostal'))$('lookupPostal').disabled=!storageHealthy||postalBusy; }
+function lockControls(){storageHealthy=!!cloudUser&&cloudReady&&!busy&&navigator.onLine;for(const el of document.querySelectorAll('#personForm input,#personForm select,#personForm textarea,#personForm button,#restore,#people button,#birthdayPeople button'))el.disabled=!storageHealthy; $('logout').disabled=busy; if($('lookupPostal'))$('lookupPostal').disabled=!storageHealthy||postalBusy; if($('importCelebrity'))$('importCelebrity').disabled=!storageHealthy||!celebrityProfile; }
 function applyRemote(){
  if(!latest||busy||editingId!==null||draftPhoto||photoBusy)return;
  people=structuredClone(latest);baseline=structuredClone(latest);render();lockControls();
@@ -186,6 +187,105 @@ $('photoDialog').addEventListener('close',()=>{$('largePhoto').removeAttribute('
 function render(){renderBirthdays();renderCategories();applyView();$('favoriteCount').textContent='（'+people.filter(p=>p.favorite===true).length+'件）';const q=$('search').value.trim().toLocaleLowerCase();const matched=visiblePeople();$('printVisible').textContent='表示中の人物を写真付きで印刷（'+matched.length+'件）';$('exportVisibleCsv').textContent='表示中のみCSVを書き出す（'+matched.length+'件）';$('filterSummary').textContent=(selectedCategory===null?'すべての分類':'分類：'+selectedCategory)+($('favoritesOnly').checked?' ／ お気に入りのみ':'')+' ／ 表示 '+matched.length+'件・登録全体 '+people.length+'件';$('people').replaceChildren();$('count').textContent=people.length+'件';$('empty').hidden=matched.length>0;$('empty').textContent=people.length?'該当する人物がいません。':'まだ登録されていません。';matched.forEach(p=>{const card=node('article','','person');if(p.photo&&validPhoto(p.photo)){const photo=document.createElement('img');photo.src=p.photo;photo.alt=p.name+'の写真';photo.className='portrait';const opener=node('button','','photo-open');opener.type='button';opener.setAttribute('aria-label',p.name+'の写真を大きく表示');opener.setAttribute('aria-haspopup','dialog');opener.append(photo,node('span','クリックで拡大'));opener.addEventListener('click',()=>openPhoto(p.id,opener));card.append(opener);}const heading=node('h3',p.name);heading.append(node('span',p.category,'pill'));card.append(heading);const body=node(simpleMode?'details':'div','','person-details');if(simpleMode){const summary=node('summary','詳細を見る');body.append(summary);body.addEventListener('toggle',()=>{summary.textContent=body.open?'詳細を閉じる':'詳細を見る';});}card.append(body);for(const [label,val] of [['ふりがな',p.furigana],['ハンドルネーム',p.nickname],['生年月日',p.birthday],['年齢',calcAge(p.birthday)],['郵便番号',p.postal],['メールアドレス',p.email],['電話番号',p.phone],['住所',p.address],['メモ',p.memo]])if(val){const line=node('p',label+'：'+val);if(label==='電話番号'){const phoneButton=node('button','📞 電話の準備','small phone-ready');phoneButton.type='button';phoneButton.setAttribute('aria-label',p.name+'の電話番号を確認');phoneButton.setAttribute('aria-haspopup','dialog');phoneButton.addEventListener('click',()=>openPhone(p.id,phoneButton));line.append(phoneButton);}body.append(line);}const actions=node('div','','actions');const star=node('button',p.favorite?'★ お気に入り解除':'☆ お気に入りに追加','small favorite-star');star.type='button';star.setAttribute('aria-pressed',String(p.favorite===true));star.setAttribute('aria-label',p.name+(p.favorite?'のお気に入りを解除':'をお気に入りに追加'));star.addEventListener('click',()=>toggleFavorite(p.id));actions.append(star);const edit=node('button','編集','small');edit.type='button';edit.addEventListener('click',()=>startEdit(p.id));actions.append(edit);const copyName=node('button','名前をコピー','small');copyName.type='button';copyName.addEventListener('click',()=>copy(p.name));actions.append(copyName);if(p.address){const copyAddress=node('button','住所をコピー','small');copyAddress.type='button';copyAddress.addEventListener('click',()=>copy(p.address));actions.append(copyAddress)}const del=node('button','削除','small secondary');del.type='button';del.addEventListener('click',async()=>{if(confirm('「'+p.name+'（'+p.category+'）」を削除しますか？')){const previous=people;people=people.filter(x=>x.id!==p.id);if(!await save())people=previous;else if(editingId===p.id)finishEdit();render()}});actions.append(del);body.append(actions);$('people').append(card)});lockControls();}
 async function copy(value){try{await navigator.clipboard.writeText(value);alert('コピーしました')}catch(e){alert('コピーできませんでした。ブラウザの設定をご確認ください。')}}
 
+// CELEBRITY_SEARCH_START
+
+let celebritySequence=0,celebrityController=null,celebrityProfile=null;
+function cancelCelebrity(){celebritySequence++;if(celebrityController)celebrityController.abort();celebrityController=null;celebrityProfile=null;$('celebrityPreview').hidden=true;$('importCelebrity').disabled=true;}
+function celebrityMessage(text){$('celebrityStatus').textContent=text;}
+async function publicWikiApi(host,params,signal){
+ const url=new URL('/w/api.php',host);url.search=new URLSearchParams({...params,format:'json',formatversion:'2',origin:'*'}).toString();
+ const response=await fetch(url,{signal,credentials:'omit',referrerPolicy:'no-referrer'});
+ if(!response.ok)throw Error('network');const data=await response.json();if(data.error)throw Error('api');return data;
+}
+function exactBirthDate(claims){
+ const active=(claims||[]).filter(c=>c.rank!=='deprecated');
+ const preferred=active.filter(c=>c.rank==='preferred');const chosen=preferred.length?preferred:active;
+ // 異なる日付が併記されている場合、推測して入力しない。
+ const values=chosen.map(c=>c.mainsnak?.datavalue?.value);
+ if(!values.length||values.some(v=>!v||v.precision!==11||!String(v.calendarmodel||'').endsWith('/Q1985727')))return '';
+ const dates=[...new Set(values.map(v=>String(v.time).match(/^\+(\d{4}-\d{2}-\d{2})T/)?.[1]||''))];
+ if(dates.length!==1||!dates[0])return '';
+ const value=dates[0],d=new Date(value+'T00:00:00');if(!Number.isFinite(d.getTime())||d.getFullYear()!==Number(value.slice(0,4))||d.getMonth()+1!==Number(value.slice(5,7))||d.getDate()!==Number(value.slice(8,10))||d>new Date())return '';
+ return value;
+}
+async function searchCelebrity(){
+ const query=$('celebrityQuery').value.trim();cancelCelebrity();$('celebrityResults').replaceChildren();
+ if(!query){celebrityMessage('調べたい著名人の名前を入力してください。');return;}
+ if(query.length>120){celebrityMessage('名前は120文字以内で入力してください。');return;}
+ const seq=celebritySequence,controller=new AbortController();celebrityController=controller;
+ celebrityMessage('候補を検索しています…');const timer=setTimeout(()=>controller.abort(),15000);
+ try{
+  const data=await publicWikiApi('https://ja.wikipedia.org',{action:'query',list:'search',srsearch:query,srnamespace:'0',srlimit:'6',srprop:''},controller.signal);
+  if(seq!==celebritySequence)return;
+  const matches=data.query?.search;
+  if(!Array.isArray(matches))throw Error('invalid');
+  if(!matches.length){celebrityMessage('候補が見つかりませんでした。名前の表記を変えて検索するか、下のフォームから直接登録してください。');return;}
+  for(const item of matches){if(typeof item.title!=='string'||!Number.isSafeInteger(item.pageid))continue;
+   const button=document.createElement('button');button.type='button';button.className='secondary';button.textContent=item.title;button.addEventListener('click',()=>loadCelebrity(item.pageid));$('celebrityResults').append(button);
+  }
+  celebrityMessage('候補を選んでプロフィールを確認してください。同姓同名や、人物以外の記事が含まれる場合があります。');
+ }catch(error){if(seq===celebritySequence)celebrityMessage(error.name==='AbortError'?'検索が時間切れになりました。もう一度検索してください。':'検索できませんでした。通信状態を確認し、もう一度お試しください。');}
+ finally{clearTimeout(timer);if(seq===celebritySequence)celebrityController=null;}
+}
+async function loadCelebrity(pageId){
+ cancelCelebrity();const seq=celebritySequence,controller=new AbortController();celebrityController=controller;
+ celebrityMessage('プロフィールを調べています…');const timer=setTimeout(()=>controller.abort(),20000);
+ try{
+  const data=await publicWikiApi('https://ja.wikipedia.org',{action:'query',pageids:String(pageId),prop:'extracts|pageprops|info',inprop:'url',exintro:'1',explaintext:'1',exchars:'1000',ppprop:'wikibase_item|disambiguation'},controller.signal);
+  if(seq!==celebritySequence)return;
+  const page=data.query?.pages?.[0];
+  if(!page||page.missing||typeof page.title!=='string'||typeof page.extract!=='string'||!page.extract.trim())throw Error('missing');
+  if(Object.hasOwn(page.pageprops||{},'disambiguation')){celebrityMessage('同じ名前の項目が複数ある案内ページです。職業などを名前に足して、検索し直してください。');return;}
+  const qid=page.pageprops?.wikibase_item;
+  let birth='',deceased=false,name=page.title.replace(/\s*[（(][^()（）]+[）)]$/,''),detailNote='生年月日は確認できませんでした。必要な場合は出典を確認して入力してください。',wikidataUrl='';
+  if(/^Q\d+$/.test(qid||'')){
+   try{
+    const entityData=await publicWikiApi('https://www.wikidata.org',{action:'wbgetentities',ids:qid,props:'claims|labels',languages:'ja'},controller.signal);
+    if(seq!==celebritySequence)return;
+    const entity=entityData.entities?.[qid],claims=entity?.claims;
+    const types=(claims?.P31||[]).filter(c=>c.rank!=='deprecated').map(c=>c.mainsnak?.datavalue?.value?.id);
+    if(types.length&&!types.includes('Q5')){celebrityMessage('この記事は人物と確認できませんでした。別の候補を選ぶか、下のフォームから直接登録してください。');return;}
+    birth=exactBirthDate(claims?.P569);
+    deceased=(claims?.P570||[]).some(c=>c.rank!=='deprecated');
+    if(typeof entity?.labels?.ja?.value==='string')name=entity.labels.ja.value;
+    wikidataUrl='https://www.wikidata.org/wiki/'+qid;
+    detailNote=birth?'生年月日はWikidataの情報です。登録前に出典をご確認ください。':'日付が不明確、未登録、または複数説あるため、生年月日は自動入力しません。';
+    if(deceased)detailNote+=' 故人のため、生年月日はメモに記載し、年齢計算用の欄には入力しません。';
+   }catch(error){if(controller.signal.aborted)throw error;}
+  }
+  if(seq!==celebritySequence)return;
+  const sourceUrl='https://ja.wikipedia.org/w/index.php?curid='+encodeURIComponent(String(page.pageid));
+  celebrityProfile={name,birth,deceased,summary:page.extract.trim().slice(0,1400),sourceUrl,wikidataUrl,title:page.title};
+  $('celebrityName').textContent=name;
+  $('celebrityBirth').textContent='生年月日：'+(birth||'自動取得なし')+(deceased?'（故人）':'');
+  $('celebritySummary').textContent=celebrityProfile.summary;
+  $('celebrityDetailNote').textContent=detailNote;
+  $('celebritySource').href=sourceUrl;$('celebritySource').textContent='Wikipedia「'+page.title+'」を開く';
+  $('celebrityDataSource').hidden=!wikidataUrl;if(wikidataUrl)$('celebrityDataSource').href=wikidataUrl;else $('celebrityDataSource').removeAttribute('href');
+  $('celebrityPreview').hidden=false;$('importCelebrity').disabled=!storageHealthy;
+  celebrityMessage('内容と人物が合っているか確認し、「登録フォームに取り込む」を押してください。まだ人物一覧には保存されていません。');
+ }catch(error){if(seq===celebritySequence)celebrityMessage(error.name==='AbortError'?'取得が時間切れになりました。候補を選び直してください。':'プロフィールを取得できませんでした。別の候補を選ぶか、少し待ってお試しください。');}
+ finally{clearTimeout(timer);if(seq===celebritySequence)celebrityController=null;}
+}
+function importCelebrity(){
+ if(!storageHealthy){celebrityMessage('Googleでログインし、接続を確認してから取り込んでください。');return;}
+ if(!celebrityProfile)return;
+ if(editingId!==null){celebrityMessage('人物を編集中です。変更を保存するか、編集をやめてから取り込んでください。');return;}
+ if(photoBusy){celebrityMessage('写真の読み込みが終わってから取り込んでください。');return;}
+ const dirty=fields.some(k=>$(k).value.trim())||draftPhoto||$('otherCategory').value.trim();
+ if(dirty&&!confirm('入力中のフォームを消して、このプロフィールを取り込みますか？ 登録済みの人物は変更しません。'))return;
+ const p=celebrityProfile;
+ finishEdit();$('name').value=p.name;$('category').value='著名人';
+ $('birthday').value=p.deceased?'':p.birth;$('age').value=calcAge($('birthday').value);
+ const note=(p.deceased?'故人'+(p.birth?'／生年月日：'+p.birth:'')+'\n':'')+p.summary+'\n\n出典：Wikipedia「'+p.title+'」\n'+p.sourceUrl+'\n概要の抜粋（CC BY-SA。編集・省略される場合があります）\nhttps://creativecommons.org/licenses/by-sa/4.0/'+(p.wikidataUrl?'\n生年月日等：Wikidata（CC0）\n'+p.wikidataUrl:'');
+ $('memo').value=note;$('editStatus').textContent='「'+p.name+'」を取り込みました。内容を確認・修正し、「登録する」で保存してください。';
+ $('formTitle').scrollIntoView({block:'start'});$('name').focus();
+}
+$('searchCelebrity').addEventListener('click',searchCelebrity);
+$('celebrityQuery').addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.isComposing){e.preventDefault();searchCelebrity();}});
+$('celebrityQuery').addEventListener('input',()=>{cancelCelebrity();$('celebrityResults').replaceChildren();celebrityMessage('名前を入力して「検索」を押してください。');});
+$('importCelebrity').addEventListener('click',importCelebrity);
+// CELEBRITY_SEARCH_END
 // POSTAL_LOOKUP_START
 
 // 郵便番号から住所を検索。入力した7桁以外は検索先へ送信しない。
