@@ -43,7 +43,7 @@ body>header,body>main,body>footer{display:none!important}
 <label>ハンドルネーム<input id="nickname" maxlength="120"></label>
 <label>生年月日<input id="birthday" type="date"></label>
 <label>年齢（自動計算）<input id="age" readonly placeholder="生年月日を入力すると表示"></label>
-<label>郵便番号<input id="postal" inputmode="numeric" placeholder="例：1000001"></label>
+<div><label for="postal">郵便番号</label><input id="postal" inputmode="numeric" maxlength="12" autocomplete="off" placeholder="例：100-0001" aria-describedby="postalHint postalStatus"><button id="lookupPostal" type="button" class="small" style="margin-top:8px">住所を調べる</button><p id="postalHint" class="notice">7桁入力すると町名まで検索します。番地・建物名は追記してください。検索先：<a href="https://zipcloud.ibsnet.co.jp/doc/api" target="_blank" rel="noopener noreferrer">zipcloud</a>（送信するのは郵便番号のみ・<a href="https://zipcloud.ibsnet.co.jp/rule/api" target="_blank" rel="noopener noreferrer">利用規約</a>）。</p><p id="postalStatus" class="notice" role="status" aria-live="polite"></p><div id="postalChoices" hidden><label for="postalCandidates">入力する住所</label><select id="postalCandidates"></select><button id="applyPostal" class="small" type="button" style="margin-top:8px">この住所を入力</button></div></div>
 <label>電話番号（任意）<input id="phone" type="tel" maxlength="80" autocomplete="off" placeholder="テスト用の番号を入力"></label>
 <label>メールアドレス（任意）<input id="email" type="email" maxlength="254" autocomplete="off" spellcheck="false" placeholder="練習用：hanako@example.com"></label>
 <label>住所<input id="address" placeholder="住所を入力"></label>
@@ -51,7 +51,7 @@ body>header,body>main,body>footer{display:none!important}
 <div class="photo-box"><label>写真（任意・テスト画像のみ）<input id="photoFile" type="file" accept="image/jpeg,image/png,image/webp"></label><p class="notice">JPEG・PNG・WebP（10MBまで）。保存用に縦横最大320pxへ縮小します。写真もログイン中のアカウントへ同期します。</p><img id="photoPreview" class="portrait" alt="選択中の写真" hidden><button id="removePhoto" type="button" class="secondary small" hidden>写真を外す</button><p id="photoStatus" role="status" aria-live="polite">写真はまだ選ばれていません。</p></div><label style="margin-top:15px">メモ<textarea id="memo" placeholder="経歴、作品、覚えておきたいことなど"></textarea></label>
 <div class="actions"><button id="submitPerson" type="submit">💗 登録する</button><button id="clearForm" class="secondary" type="reset">入力を消す</button><button id="cancelEdit" class="secondary" type="button" hidden>編集をやめる</button></div>
 </form>
-<p class="notice">🔒 ログインしたアカウント専用の保存先を使用します。Excelで開けるCSVを書き出せます。Googleログインで自動同期します。名刺読み取り・郵便番号からの住所自動入力は未実装です。実際の個人情報はまだ登録せず、架空の名前で試してください。</p>
+<p class="notice">🔒 ログインしたアカウント専用の保存先を使用します。Excelで開けるCSVを書き出せます。Googleログインで自動同期します。郵便番号から町名まで住所を入力できます。名刺読み取りは未実装です。実際の個人情報はまだ登録せず、架空の名前で試してください。</p>
 </section>
 <section class="panel" aria-labelledby="birthdayTitle"><h2 id="birthdayTitle">🎂 誕生日が近い人</h2><label>確認する期間<select id="birthdayRange"><option value="7">今日から7日以内</option><option value="30" selected>今日から30日以内</option><option value="90">今日から90日以内</option></select></label><p class="notice">登録されている全員から、生年月日を入力した人を誕生日が近い順に表示します。一覧の分類・検索・お気に入りの条件には影響されません。2月29日生まれは、うるう年以外は2月28日として数えます。実際の生年月日はまだ入力せず、架空の日付で試してください。</p><p id="birthdaySummary" role="status" aria-live="polite"></p><div id="birthdayPeople" class="people"></div><div class="actions"><button id="birthdayPdf" type="button">誕生日一覧をPDF保存・印刷</button></div><p class="notice">選んだ期間の誕生日一覧を、写真・名前・誕生日・あと何日で作成します。連絡先やメモは載せません。開いた印刷画面の「送信先」で「PDFに保存」を選んでください。下の人物一覧の印刷項目とは別の設定です。写真と文字は標準の大きさです。</p><p id="birthdayPdfStatus" role="status" aria-live="polite"></p><button id="refreshBirthdays" type="button" class="secondary small" style="margin-top:12px">今日の日付で更新</button></section><section class="panel"><h2>📖 人物一覧 <span id="count" class="pill">0件</span></h2>
 <div class="actions"><button id="exportCsv" type="button">Excel用CSVを書き出す（全件）</button><button id="backup" type="button" class="secondary">バックアップ保存</button><button id="restore" type="button" class="secondary">バックアップを追加読込</button></div>
@@ -78,7 +78,7 @@ const firebaseConfig={apiKey:"AIzaSyAmHbKG-NJwquR0g7HXbuWH0y3goKjtIMw",authDomai
 const app=initializeApp(firebaseConfig),auth=getAuth(app),db=getFirestore(app);
 let cloudUser=null,cloudReady=false,busy=false,baseline=[],unsubscribe=null,latest=null,epoch=0;
 function syncMessage(text){$('syncStatus').textContent=text;}
-function lockControls(){storageHealthy=!!cloudUser&&cloudReady&&!busy&&navigator.onLine;for(const el of document.querySelectorAll('#personForm input,#personForm select,#personForm textarea,#personForm button,#restore,#people button,#birthdayPeople button'))el.disabled=!storageHealthy; $('logout').disabled=busy; }
+function lockControls(){storageHealthy=!!cloudUser&&cloudReady&&!busy&&navigator.onLine;for(const el of document.querySelectorAll('#personForm input,#personForm select,#personForm textarea,#personForm button,#restore,#people button,#birthdayPeople button'))el.disabled=!storageHealthy; $('logout').disabled=busy; if($('lookupPostal'))$('lookupPostal').disabled=!storageHealthy||postalBusy; }
 function applyRemote(){
  if(!latest||busy||editingId!==null||draftPhoto||photoBusy)return;
  people=structuredClone(latest);baseline=structuredClone(latest);render();lockControls();
@@ -186,9 +186,69 @@ $('photoDialog').addEventListener('close',()=>{$('largePhoto').removeAttribute('
 function render(){renderBirthdays();renderCategories();applyView();$('favoriteCount').textContent='（'+people.filter(p=>p.favorite===true).length+'件）';const q=$('search').value.trim().toLocaleLowerCase();const matched=visiblePeople();$('printVisible').textContent='表示中の人物を写真付きで印刷（'+matched.length+'件）';$('exportVisibleCsv').textContent='表示中のみCSVを書き出す（'+matched.length+'件）';$('filterSummary').textContent=(selectedCategory===null?'すべての分類':'分類：'+selectedCategory)+($('favoritesOnly').checked?' ／ お気に入りのみ':'')+' ／ 表示 '+matched.length+'件・登録全体 '+people.length+'件';$('people').replaceChildren();$('count').textContent=people.length+'件';$('empty').hidden=matched.length>0;$('empty').textContent=people.length?'該当する人物がいません。':'まだ登録されていません。';matched.forEach(p=>{const card=node('article','','person');if(p.photo&&validPhoto(p.photo)){const photo=document.createElement('img');photo.src=p.photo;photo.alt=p.name+'の写真';photo.className='portrait';const opener=node('button','','photo-open');opener.type='button';opener.setAttribute('aria-label',p.name+'の写真を大きく表示');opener.setAttribute('aria-haspopup','dialog');opener.append(photo,node('span','クリックで拡大'));opener.addEventListener('click',()=>openPhoto(p.id,opener));card.append(opener);}const heading=node('h3',p.name);heading.append(node('span',p.category,'pill'));card.append(heading);const body=node(simpleMode?'details':'div','','person-details');if(simpleMode){const summary=node('summary','詳細を見る');body.append(summary);body.addEventListener('toggle',()=>{summary.textContent=body.open?'詳細を閉じる':'詳細を見る';});}card.append(body);for(const [label,val] of [['ふりがな',p.furigana],['ハンドルネーム',p.nickname],['生年月日',p.birthday],['年齢',calcAge(p.birthday)],['郵便番号',p.postal],['メールアドレス',p.email],['電話番号',p.phone],['住所',p.address],['メモ',p.memo]])if(val){const line=node('p',label+'：'+val);if(label==='電話番号'){const phoneButton=node('button','📞 電話の準備','small phone-ready');phoneButton.type='button';phoneButton.setAttribute('aria-label',p.name+'の電話番号を確認');phoneButton.setAttribute('aria-haspopup','dialog');phoneButton.addEventListener('click',()=>openPhone(p.id,phoneButton));line.append(phoneButton);}body.append(line);}const actions=node('div','','actions');const star=node('button',p.favorite?'★ お気に入り解除':'☆ お気に入りに追加','small favorite-star');star.type='button';star.setAttribute('aria-pressed',String(p.favorite===true));star.setAttribute('aria-label',p.name+(p.favorite?'のお気に入りを解除':'をお気に入りに追加'));star.addEventListener('click',()=>toggleFavorite(p.id));actions.append(star);const edit=node('button','編集','small');edit.type='button';edit.addEventListener('click',()=>startEdit(p.id));actions.append(edit);const copyName=node('button','名前をコピー','small');copyName.type='button';copyName.addEventListener('click',()=>copy(p.name));actions.append(copyName);if(p.address){const copyAddress=node('button','住所をコピー','small');copyAddress.type='button';copyAddress.addEventListener('click',()=>copy(p.address));actions.append(copyAddress)}const del=node('button','削除','small secondary');del.type='button';del.addEventListener('click',async()=>{if(confirm('「'+p.name+'（'+p.category+'）」を削除しますか？')){const previous=people;people=people.filter(x=>x.id!==p.id);if(!await save())people=previous;else if(editingId===p.id)finishEdit();render()}});actions.append(del);body.append(actions);$('people').append(card)});lockControls();}
 async function copy(value){try{await navigator.clipboard.writeText(value);alert('コピーしました')}catch(e){alert('コピーできませんでした。ブラウザの設定をご確認ください。')}}
 
+// POSTAL_LOOKUP_START
+
+// 郵便番号から住所を検索。入力した7桁以外は検索先へ送信しない。
+let postalSequence=0,postalTimer=null,postalController=null,postalBusy=false,postalCandidates=[],postalResultCode='';
+function normalizePostal(value){return String(value).normalize('NFKC').replace(/[‐‑‒–—―−ー]/g,'-').replace(/[\s-]/g,'');}
+function clearPostalResults(){postalCandidates=[];postalResultCode='';$('postalCandidates').replaceChildren();$('postalChoices').hidden=true;}
+function cancelPostalLookup(){postalSequence++;clearTimeout(postalTimer);postalTimer=null;if(postalController)postalController.abort();postalController=null;postalBusy=false;clearPostalResults();$('postalStatus').textContent='';$('lookupPostal').textContent='住所を調べる';}
+function postalCurrent(seq,code,edit){return seq===postalSequence&&normalizePostal($('postal').value)===code&&editingId===edit&&storageHealthy;}
+function usePostalAddress(index,seq=postalSequence){
+ if(!storageHealthy||seq!==postalSequence||normalizePostal($('postal').value)!==postalResultCode)return;
+ const address=postalCandidates[index];if(!address)return;
+ const old=$('address').value.trim();
+ if(old&&old!==address&&!confirm('現在の住所を「'+address+'」に置き換えますか？ 番地・建物名は必要に応じて追記してください。'))return;
+ $('address').value=address;
+ $('postalStatus').textContent='住所を入力しました。番地・建物名を追記し、「登録する」または「変更を保存」で保存してください。';
+}
+async function lookupPostal(){
+ if(!storageHealthy)return;
+ cancelPostalLookup();
+ const code=normalizePostal($('postal').value);
+ if(!/^\d{7}$/.test(code)){$('postalStatus').textContent='郵便番号を7桁の数字で入力してください（例：100-0001）。';return;}
+ const seq=postalSequence,edit=editingId,addressAtStart=$('address').value;
+ const controller=new AbortController();postalController=controller;postalBusy=true;
+ $('lookupPostal').disabled=true;$('lookupPostal').textContent='検索中…';$('postalStatus').textContent='住所を調べています…';
+ const timeout=setTimeout(()=>controller.abort(),12000);
+ try{
+  const response=await fetch('https://zipcloud.ibsnet.co.jp/api/search?zipcode='+encodeURIComponent(code)+'&limit=100',{signal:controller.signal,credentials:'omit',referrerPolicy:'no-referrer'});
+  if(!response.ok)throw Error('network');
+  const data=await response.json();
+  if(!postalCurrent(seq,code,edit))return;
+  if(data.status!==200)throw Error('api');
+  if(data.results===null||(Array.isArray(data.results)&&!data.results.length)){$('postalStatus').textContent='住所が見つかりませんでした。郵便番号を確認するか、住所を直接入力してください。';return;}
+  if(!Array.isArray(data.results)||!data.results.every(row=>row&&row.zipcode===code&&['address1','address2','address3'].every(k=>typeof row[k]==='string'&&row[k].length<300)))throw Error('invalid');
+  postalCandidates=[...new Set(data.results.map(row=>row.address1+row.address2+row.address3))].filter(Boolean);postalResultCode=code;
+  if(!postalCandidates.length)throw Error('invalid');
+  if(postalCandidates.length===1&&addressAtStart===''&&$('address').value===''){
+   usePostalAddress(0,seq);
+  }else{
+   const options=$('postalCandidates');options.replaceChildren();
+   postalCandidates.forEach((address,index)=>{const option=document.createElement('option');option.value=String(index);option.textContent=address;options.append(option);});
+   $('postalChoices').hidden=false;
+   $('postalStatus').textContent=postalCandidates.length>1?'住所の候補が複数あります。選んで「この住所を入力」を押してください。':'住所が見つかりました。現在の住所は残しています。「この住所を入力」で置き換えられます。';
+  }
+ }catch(error){
+  if(postalCurrent(seq,code,edit))$('postalStatus').textContent=error.name==='AbortError'?'検索が時間切れになりました。「住所を調べる」で再試行するか、住所を直接入力してください。':'住所を検索できませんでした。通信を確認して再試行するか、住所を直接入力してください。';
+ }finally{
+  clearTimeout(timeout);
+  if(seq===postalSequence){postalBusy=false;postalController=null;$('lookupPostal').textContent='住所を調べる';lockControls();}
+ }
+}
+$('lookupPostal').addEventListener('click',lookupPostal);
+$('applyPostal').addEventListener('click',()=>usePostalAddress(Number($('postalCandidates').value)));
+$('postal').addEventListener('input',()=>{
+ cancelPostalLookup();lockControls();
+ if(storageHealthy&&/^\d{7}$/.test(normalizePostal($('postal').value)))postalTimer=setTimeout(lookupPostal,650);
+});
+$('postal').addEventListener('compositionstart',cancelPostalLookup);
+$('postal').addEventListener('compositionend',()=>{cancelPostalLookup();if(storageHealthy&&/^\d{7}$/.test(normalizePostal($('postal').value)))postalTimer=setTimeout(lookupPostal,650);});
+$('personForm').addEventListener('reset',cancelPostalLookup);
+// POSTAL_LOOKUP_END
 const fields=['name','nickname','birthday','postal','address','memo','phone','email','furigana'];
-function finishEdit(){stopPhoto();draftPhoto='';refreshPhoto();editingId=null;$('formTitle').textContent='🌷 人物を登録';$('submitPerson').textContent='💗 登録する';$('clearForm').hidden=false;$('cancelEdit').hidden=true;$('personForm').reset();$('age').value='';queueMicrotask(applyRemote);}
-function startEdit(id){if(!storageHealthy){$('editStatus').textContent='保存データ保護のため編集できません。';return;}if(editingId!==null&&!confirm('入力中の編集内容を破棄して、人物を選び直しますか？'))return;const p=people.find(x=>x.id===id);if(!p)return;stopPhoto();draftPhoto=p.photo||'';refreshPhoto();editingId=id;for(const k of fields)$(k).value=p[k]??'';const builtIn=Array.from($('category').options).some(o=>o.value===p.category);$('category').value=builtIn?p.category:'その他';$('otherCategory').value=builtIn?'':p.category;$('age').value=calcAge(p.birthday);$('formTitle').textContent='✏️ 人物を編集';$('submitPerson').textContent='変更を保存';$('clearForm').hidden=true;$('cancelEdit').hidden=false;$('editStatus').textContent='「'+p.name+'」を編集中です。「変更を保存」を押すまで登録内容は変わりません。';$('formTitle').scrollIntoView({block:'start'});$('name').focus();}
+function finishEdit(){cancelPostalLookup();stopPhoto();draftPhoto='';refreshPhoto();editingId=null;$('formTitle').textContent='🌷 人物を登録';$('submitPerson').textContent='💗 登録する';$('clearForm').hidden=false;$('cancelEdit').hidden=true;$('personForm').reset();$('age').value='';queueMicrotask(applyRemote);}
+function startEdit(id){cancelPostalLookup();if(!storageHealthy){$('editStatus').textContent='保存データ保護のため編集できません。';return;}if(editingId!==null&&!confirm('入力中の編集内容を破棄して、人物を選び直しますか？'))return;const p=people.find(x=>x.id===id);if(!p)return;stopPhoto();draftPhoto=p.photo||'';refreshPhoto();editingId=id;for(const k of fields)$(k).value=p[k]??'';const builtIn=Array.from($('category').options).some(o=>o.value===p.category);$('category').value=builtIn?p.category:'その他';$('otherCategory').value=builtIn?'':p.category;$('age').value=calcAge(p.birthday);$('formTitle').textContent='✏️ 人物を編集';$('submitPerson').textContent='変更を保存';$('clearForm').hidden=true;$('cancelEdit').hidden=false;$('editStatus').textContent='「'+p.name+'」を編集中です。「変更を保存」を押すまで登録内容は変わりません。';$('formTitle').scrollIntoView({block:'start'});$('name').focus();}
 $('cancelEdit').addEventListener('click',()=>{if(confirm('編集内容を保存せずに終了しますか？')){finishEdit();$('editStatus').textContent='編集をやめました。登録内容は変更していません。';}});
 $('personForm').addEventListener('reset',()=>{if(editingId===null){stopPhoto();draftPhoto='';refreshPhoto();$('editStatus').textContent='';}});
 window.addEventListener('beforeunload',e=>{if(editingId!==null||draftPhoto||photoBusy){e.preventDefault();e.returnValue='';}});
