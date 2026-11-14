@@ -33,7 +33,7 @@ body>header,body>main,body>footer{display:none!important}
 <header><h1>🐱 My人物図鑑＆住所録 🌸</h1><p>大切な人物情報を、見やすく整理しましょう</p></header>
 <main>
 <section class="panel"><h2>☁️ Googleログイン・自動同期</h2><p id="syncStatus" role="status" aria-live="polite">接続を準備しています…</p><div class="actions"><button id="login" type="button">Googleでログイン</button><button id="logout" type="button" hidden>ログアウト</button><button id="retrySync" type="button" hidden>再接続</button></div><p class="notice">スマホとパソコンで同じGoogleアカウントを使ってください。ログイン後、バックアップを追加読込すると人物を取り込めます。同期にはインターネット接続が必要です。写真は従来どおり縮小して保存します。</p></section>
-<section class="panel" aria-labelledby="celebrityTitle"><h2 id="celebrityTitle">🔎 著名人を調べて取り込む</h2><label for="celebrityQuery">著名人の名前</label><input id="celebrityQuery" maxlength="120" placeholder="例：新垣結衣" autocomplete="off" aria-describedby="celebrityHint"><div class="actions"><button id="searchCelebrity" type="button">検索</button></div><p id="celebrityHint" class="notice">公開されているWikipediaの概要とWikidataの生年月日を調べます。検索した名前を両サービスに送信します。登録済みの住所・電話番号・メモは送信しません。写真の取得にはまだ対応していません。</p><p id="celebrityStatus" role="status" aria-live="polite">名前を入力して「検索」を押してください。</p><div id="celebrityResults" class="actions"></div><article id="celebrityPreview" class="person" style="margin-top:16px" hidden><h3 id="celebrityName"></h3><p id="celebrityBirth"></p><p id="celebritySummary" style="white-space:pre-wrap"></p><p id="celebrityDetailNote" class="notice"></p><p><a id="celebritySource" target="_blank" rel="noopener noreferrer"></a> <a id="celebrityDataSource" target="_blank" rel="noopener noreferrer" hidden>Wikidataを開く</a></p><p class="notice">概要の出典：Wikipediaの各記事・執筆者（<a href="https://creativecommons.org/licenses/by-sa/4.0/" target="_blank" rel="noopener noreferrer">CC BY-SA</a>）。生年月日等：Wikidata（CC0）。内容には誤りや更新の遅れがある場合があります。人物と内容を出典で確認してください。</p><div class="actions"><button id="importCelebrity" type="button" disabled>登録フォームに取り込む</button></div></article></section>
+<section class="panel" aria-labelledby="celebrityTitle"><h2 id="celebrityTitle">🔎 著名人を調べて取り込む</h2><label for="celebrityQuery">著名人の名前</label><input id="celebrityQuery" maxlength="120" placeholder="例：新垣結衣" autocomplete="off" aria-describedby="celebrityHint"><div class="actions"><button id="searchCelebrity" type="button">検索</button></div><p id="celebrityHint" class="notice">公開されているWikipediaの概要とWikidataの生年月日を調べます。検索した名前を両サービスに送信します。登録済みの住所・電話番号・メモは送信しません。取得できる写真があれば、出典・利用条件とともに表示します。</p><p id="celebrityStatus" role="status" aria-live="polite">名前を入力して「検索」を押してください。</p><div id="celebrityResults" class="actions"></div><article id="celebrityPreview" class="person" style="margin-top:16px" hidden><h3 id="celebrityName"></h3><p id="celebrityBirth"></p><p id="celebrityPhotoStatus" class="notice"></p><div id="celebrityPhotoBox" hidden><img id="celebrityPhoto" class="portrait" alt="写真候補" style="width:160px;height:160px"><label style="display:flex;gap:8px;align-items:center"><input id="includeCelebrityPhoto" type="checkbox" checked style="width:20px;height:20px;margin:0">この写真も取り込む</label><p id="celebrityPhotoCredit" class="notice"></p><a id="celebrityPhotoSource" target="_blank" rel="noopener noreferrer">写真の出典と利用条件を確認</a><p class="notice">保存用に最大320pxへ縮小します。元画像は出典ページから確認できます。出典・作者・利用条件はメモにも記録します。</p><div style="margin-top:12px"><label for="celebrityExisting">登録済みの人物へ写真だけを追加する場合</label><select id="celebrityExisting"></select><button id="addCelebrityPhoto" type="button" class="small secondary" style="margin-top:8px">選んだ人物に写真を追加</button><p class="notice">既存のプロフィールを残して写真の編集画面を開きます。「変更を保存」で保存します。</p></div></div><p id="celebritySummary" style="white-space:pre-wrap"></p><p id="celebrityDetailNote" class="notice"></p><p><a id="celebritySource" target="_blank" rel="noopener noreferrer"></a> <a id="celebrityDataSource" target="_blank" rel="noopener noreferrer" hidden>Wikidataを開く</a></p><p class="notice">概要の出典：Wikipediaの各記事・執筆者（<a href="https://creativecommons.org/licenses/by-sa/4.0/" target="_blank" rel="noopener noreferrer">CC BY-SA</a>）。生年月日等：Wikidata（CC0）。内容には誤りや更新の遅れがある場合があります。人物と内容を出典で確認してください。</p><div class="actions"><button id="importCelebrity" type="button" disabled>登録フォームに取り込む</button></div></article></section>
 <section class="panel"><h2 id="formTitle">🌷 人物を登録</h2><p id="editStatus" role="status" aria-live="polite"></p>
 <form id="personForm">
 <div class="fields">
@@ -189,6 +189,56 @@ async function copy(value){try{await navigator.clipboard.writeText(value);alert(
 
 // CELEBRITY_SEARCH_START
 
+// CELEBRITY_PHOTO_START
+
+function metadataPlain(value){return new DOMParser().parseFromString(String(value||''),'text/html').body.textContent.replace(/\s+/g,' ').trim();}
+function photoLicense(info){
+ const meta=info?.extmetadata||{};
+ const text=key=>metadataPlain(meta[key]?.value);
+ const label=text('LicenseShortName'),artist=text('Artist')||text('Credit'),credit=text('Credit'),restrictions=text('Restrictions');
+ let licenseUrl=text('LicenseUrl');if(licenseUrl.startsWith('//'))licenseUrl='https:'+licenseUrl;
+ let parsed;try{parsed=new URL(licenseUrl);}catch(error){}
+ const cc=parsed&&parsed.protocol==='https:'&&parsed.hostname==='creativecommons.org'&&/^\/licenses\/by(?:-sa)?\/[1-4]\.\d(?:\/|$)/.test(parsed.pathname);
+ const pd=parsed&&parsed.protocol==='https:'&&parsed.hostname==='creativecommons.org'&&/^\/publicdomain\/(?:zero|mark)\/1\.0(?:\/|$)/.test(parsed.pathname);
+ if(!cc&&!pd)return null;
+ if(cc&&!artist)return null;
+ if(!label)return null;
+ let page;try{page=new URL(info.descriptionurl);}catch(error){return null;}
+ if(page.protocol!=='https:'||page.hostname!=='commons.wikimedia.org')return null;
+ return {label,artist:artist||'作者の記載は出典をご確認ください',credit,restrictions,licenseUrl,sourceUrl:page.href};
+}
+async function smallCelebrityPhoto(blob,signal){
+ const url=URL.createObjectURL(blob);let image;
+ try{
+  image=await new Promise((resolve,reject)=>{const img=new Image();const aborted=()=>{img.src='';reject(new DOMException('Aborted','AbortError'));};signal.addEventListener('abort',aborted,{once:true});
+   const done=fn=>value=>{signal.removeEventListener('abort',aborted);fn(value);};
+   img.onload=done(()=>resolve(img));img.onerror=done(()=>reject(Error('image')));if(signal.aborted){aborted();return;}img.src=url;
+  });
+  if(signal.aborted)throw new DOMException('Aborted','AbortError');
+  if(!image.naturalWidth||!image.naturalHeight)throw Error('image');
+  const ratio=Math.min(1,320/image.naturalWidth,320/image.naturalHeight),canvas=document.createElement('canvas');
+  canvas.width=Math.max(1,Math.round(image.naturalWidth*ratio));canvas.height=Math.max(1,Math.round(image.naturalHeight*ratio));
+  const ctx=canvas.getContext('2d');ctx.fillStyle='#ffffff';ctx.fillRect(0,0,canvas.width,canvas.height);ctx.drawImage(image,0,0,canvas.width,canvas.height);
+  const photo=canvas.toDataURL('image/jpeg',.78);if(!validPhoto(photo))throw Error('size');return photo;
+ }finally{URL.revokeObjectURL(url);}
+}
+async function findCelebrityPhoto(filename,signal){
+ if(typeof filename!=='string'||!filename.trim())return null;
+ const result=await publicWikiApi('https://commons.wikimedia.org',{action:'query',titles:'File:'+filename,prop:'imageinfo',iiprop:'url|mime|extmetadata',iiurlwidth:'320',redirects:'1'},signal);
+ const info=result.query?.pages?.[0]?.imageinfo?.[0],license=photoLicense(info);
+ if(!license||!['image/jpeg','image/png','image/webp'].includes(info?.mime))return null;
+ let imageUrl;try{imageUrl=new URL(info.thumburl||info.url);}catch(error){return null;}
+ if(imageUrl.protocol!=='https:'||imageUrl.hostname!=='upload.wikimedia.org')return null;
+ const response=await fetch(imageUrl.href,{signal,credentials:'omit',referrerPolicy:'no-referrer'});
+ if(!response.ok)throw Error('image-network');
+ const blob=await response.blob();if(!['image/jpeg','image/png','image/webp'].includes(blob.type)||blob.size>5*1024*1024)throw Error('image-format');
+ return {photo:await smallCelebrityPhoto(blob,signal),...license};
+}
+function photoAttribution(photo){
+ if(!photo)return '';
+ return '\n\n写真出典：Wikimedia Commons\n'+photo.sourceUrl+'\n作者：'+photo.artist+'\nライセンス：'+photo.label+'\n'+photo.licenseUrl+(photo.credit?'\nクレジット：'+photo.credit:'')+(photo.restrictions?'\n出典記載の注意事項：'+photo.restrictions:'')+'\n保存用に縮小・JPEG変換。再利用する際も写真の出典と利用条件を確認してください。';
+}
+// CELEBRITY_PHOTO_END
 let celebritySequence=0,celebrityController=null,celebrityProfile=null;
 function cancelCelebrity(){celebritySequence++;if(celebrityController)celebrityController.abort();celebrityController=null;celebrityProfile=null;$('celebrityPreview').hidden=true;$('importCelebrity').disabled=true;}
 function celebrityMessage(text){$('celebrityStatus').textContent=text;}
@@ -231,7 +281,7 @@ async function loadCelebrity(pageId){
  cancelCelebrity();const seq=celebritySequence,controller=new AbortController();celebrityController=controller;
  celebrityMessage('プロフィールを調べています…');const timer=setTimeout(()=>controller.abort(),20000);
  try{
-  const data=await publicWikiApi('https://ja.wikipedia.org',{action:'query',pageids:String(pageId),prop:'extracts|pageprops|info',inprop:'url',exintro:'1',explaintext:'1',exchars:'1000',ppprop:'wikibase_item|disambiguation'},controller.signal);
+  const data=await publicWikiApi('https://ja.wikipedia.org',{action:'query',pageids:String(pageId),prop:'extracts|pageprops|info|pageimages',piprop:'name',pilicense:'free',inprop:'url',exintro:'1',explaintext:'1',exchars:'1000',ppprop:'wikibase_item|disambiguation'},controller.signal);
   if(seq!==celebritySequence)return;
   const page=data.query?.pages?.[0];
   if(!page||page.missing||typeof page.title!=='string'||typeof page.extract!=='string'||!page.extract.trim())throw Error('missing');
@@ -255,7 +305,12 @@ async function loadCelebrity(pageId){
   }
   if(seq!==celebritySequence)return;
   const sourceUrl='https://ja.wikipedia.org/w/index.php?curid='+encodeURIComponent(String(page.pageid));
-  celebrityProfile={name,birth,deceased,summary:page.extract.trim().slice(0,1400),sourceUrl,wikidataUrl,title:page.title};
+  let selectedPhoto=null;try{selectedPhoto=await findCelebrityPhoto(page.pageimage,controller.signal);}catch(error){} if(seq!==celebritySequence)return;
+  celebrityProfile={photo:selectedPhoto,name,birth,deceased,summary:page.extract.trim().slice(0,1400),sourceUrl,wikidataUrl,title:page.title};
+  const existingOptions=$('celebrityExisting');existingOptions.replaceChildren();const blank=document.createElement('option');blank.value='';blank.textContent='写真を追加する人物を選択';existingOptions.append(blank);for(const person of people){const option=document.createElement('option');option.value=person.id;option.textContent=person.name+'（'+person.category+'）';existingOptions.append(option);}const sameName=people.filter(person=>person.name.normalize('NFKC').replace(/\s/g,'')===name.normalize('NFKC').replace(/\s/g,''));existingOptions.value=sameName.length===1?sameName[0].id:'';
+  $('celebrityPhotoBox').hidden=!selectedPhoto;$('includeCelebrityPhoto').checked=!!selectedPhoto;
+  if(selectedPhoto){$('celebrityPhoto').src=selectedPhoto.photo;$('celebrityPhoto').alt=name+'の写真候補';$('celebrityPhotoCredit').textContent='作者：'+selectedPhoto.artist+' ／ '+selectedPhoto.label;$('celebrityPhotoSource').href=selectedPhoto.sourceUrl;}else{$('celebrityPhoto').removeAttribute('src');}
+  $('celebrityPhotoStatus').textContent=selectedPhoto?'写真の人物と出典を確認してください。チェックを外すと写真なしで取り込みます。':'取り込める写真を取得できませんでした。写真がない、利用条件を確認できない、または通信できない場合があります。プロフィールは写真なしで取り込めます。';
   $('celebrityName').textContent=name;
   $('celebrityBirth').textContent='生年月日：'+(birth||'自動取得なし')+(deceased?'（故人）':'');
   $('celebritySummary').textContent=celebrityProfile.summary;
@@ -275,16 +330,31 @@ function importCelebrity(){
  const dirty=fields.some(k=>$(k).value.trim())||draftPhoto||$('otherCategory').value.trim();
  if(dirty&&!confirm('入力中のフォームを消して、このプロフィールを取り込みますか？ 登録済みの人物は変更しません。'))return;
  const p=celebrityProfile;
- finishEdit();$('name').value=p.name;$('category').value='著名人';
+ finishEdit();if(p.photo&&$('includeCelebrityPhoto').checked){draftPhoto=p.photo.photo;refreshPhoto();}$('name').value=p.name;$('category').value='著名人';
  $('birthday').value=p.deceased?'':p.birth;$('age').value=calcAge($('birthday').value);
  const note=(p.deceased?'故人'+(p.birth?'／生年月日：'+p.birth:'')+'\n':'')+p.summary+'\n\n出典：Wikipedia「'+p.title+'」\n'+p.sourceUrl+'\n概要の抜粋（CC BY-SA。編集・省略される場合があります）\nhttps://creativecommons.org/licenses/by-sa/4.0/'+(p.wikidataUrl?'\n生年月日等：Wikidata（CC0）\n'+p.wikidataUrl:'');
- $('memo').value=note;$('editStatus').textContent='「'+p.name+'」を取り込みました。内容を確認・修正し、「登録する」で保存してください。';
+ $('memo').value=note+photoAttribution(p.photo&&$('includeCelebrityPhoto').checked?p.photo:null);$('editStatus').textContent='「'+p.name+'」を取り込みました。内容を確認・修正し、「登録する」で保存してください。';
  $('formTitle').scrollIntoView({block:'start'});$('name').focus();
 }
 $('searchCelebrity').addEventListener('click',searchCelebrity);
 $('celebrityQuery').addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.isComposing){e.preventDefault();searchCelebrity();}});
 $('celebrityQuery').addEventListener('input',()=>{cancelCelebrity();$('celebrityResults').replaceChildren();celebrityMessage('名前を入力して「検索」を押してください。');});
 $('importCelebrity').addEventListener('click',importCelebrity);
+
+function addPhotoToExisting(){
+ if(!storageHealthy||!celebrityProfile?.photo){celebrityMessage('ログインと写真の取得状態を確認してください。');return;}
+ if(editingId!==null||photoBusy){celebrityMessage('編集中の内容を保存するか、編集をやめてから写真を追加してください。');return;}
+ const existing=people.find(p=>p.id===$('celebrityExisting').value);
+ if(!existing){celebrityMessage('写真を追加する登録済みの人物を選んでください。');return;}
+ const dirty=fields.some(k=>$(k).value.trim())||draftPhoto||$('otherCategory').value.trim();
+ if(dirty&&!confirm('入力中のフォームを破棄して「'+existing.name+'」を編集しますか？'))return;
+ if(existing.photo&&!confirm('「'+existing.name+'」の現在の写真を、表示中の写真に置き換える準備をしますか？ 保存するまで元の写真は残ります。'))return;
+ const selected=celebrityProfile.photo;
+ startEdit(existing.id);draftPhoto=selected.photo;refreshPhoto();
+ if(!$('memo').value.includes(selected.sourceUrl))$('memo').value+=photoAttribution(selected);
+ $('editStatus').textContent='「'+existing.name+'」に写真を追加する準備ができました。人物と写真を確認し、「変更を保存」を押してください。';
+}
+$('addCelebrityPhoto').addEventListener('click',addPhotoToExisting);
 // CELEBRITY_SEARCH_END
 // POSTAL_LOOKUP_START
 
